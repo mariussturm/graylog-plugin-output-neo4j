@@ -1,4 +1,4 @@
-# Graylog Neo4jOutput Plugin
+# Graylog Neo4jOutput Plugin (Exerimental)
 
 Welcome to your new Graylog plugin!
 
