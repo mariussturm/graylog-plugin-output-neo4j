@@ -1,9 +1,7 @@
 # Graylog Neo4jOutput Plugin (Experimental)
 
-Welcome to your new Graylog plugin!
+**Required Graylog version:** 2.0 and later
 
-Please refer to http://docs.graylog.org/en/latest/pages/plugins.html for documentation on how to write
-plugins for Graylog.
 
 
 Getting started
