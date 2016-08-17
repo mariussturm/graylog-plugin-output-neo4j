@@ -5,6 +5,7 @@ import org.graylog2.plugin.Message;
 import org.graylog2.plugin.configuration.Configuration;
 import org.graylog2.plugin.outputs.MessageOutputConfigurationException;
 import org.neo4j.driver.v1.*;
+import org.neo4j.driver.v1.exceptions.ClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,31 +31,35 @@ public class Neo4JBoltTransport implements INeo4jTransport {
 
         configuration = config;
         fields = new LinkedList<String>();;
+        Session session = null;
+
         try {
             driver = GraphDatabase.driver( config.getString(Neo4jOutput.CK_NEO4J_URL),
                     AuthTokens.basic(config.getString(Neo4jOutput.CK_NEO4J_USER), config.getString(Neo4jOutput.CK_NEO4J_PASSWORD)) );
-            Session session = driver.session();
+            session = driver.session();
 
             //run initialization query only once
             String createQueryOnce = config.getString(Neo4jOutput.CK_NEO4J_STARTUP_QUERY);
 
             if (createQueryOnce.length() > 0)
                 session.run(createQueryOnce);
-            session.close();
         }
-        catch (Exception e){
+        catch (ClientException e){
             throw new MessageOutputConfigurationException("Malformed neo4j configuration: " + e );
+        }
+        finally {
+            session.close();
         }
         //get message fields needed by cypher query
         String createQuery = config.getString(Neo4jOutput.CK_NEO4J_QUERY);
-        LOG.info("Bolt protocol, create query: " + createQuery);
+        LOG.debug("Bolt protocol, create query: " + createQuery);
 
         Matcher m = Pattern.compile("\\{([^{}]*)\\}").matcher(createQuery);
         while (m.find()) {
             fields.add(m.group(1));
-            LOG.info("Found field: " + m.group(1));
+            LOG.debug("Found field in cypher statement: " + m.group(1));
         }
-        LOG.info("Identified " + fields.size() + " fields in graph create query: ");
+        LOG.info("Identified " + fields.size() + " fields in graph create query.");
 
         parsedCreateQery = parseQuery(createQuery);
 
@@ -65,13 +70,13 @@ public class Neo4JBoltTransport implements INeo4jTransport {
         Session session = null;
         try {
             session = driver.session();
-            session.run(query, mapping);
+            session.run(query, mapping).consume();
         }
-        catch (Exception e) {
-            LOG.info("Could not push message to Graph Database: " + e.getMessage());
+        catch (ClientException e) {
+            LOG.debug("Could not push message to Graph Database: " + e.getMessage());
         }
         finally{
-            if (session != null)
+            if (session != null && session.isOpen())
                 session.close();
         }
     }
@@ -92,27 +97,25 @@ public class Neo4JBoltTransport implements INeo4jTransport {
         HashMap<String, Object> convertedFields = new HashMap<String, Object>(){};
         //TODO: only convert field values if necessary
         //identify relevant messages (message need at least one field of given cypher query) and convert values to string if exist
-        Boolean isMessageRelevant = false;
+        //Boolean isMessageRelevant = false;
 
         for (String field : fields){
             if (message.hasField(field)) {
                 Object valueForField = message.getField(field);
-                if (valueForField != null) {
-                    isMessageRelevant = true;
-                    convertedFields.put(field, String.valueOf(valueForField));
-                }
+                convertedFields.put(field, String.valueOf(valueForField));
             }
-            else{
+            else
+            {
                 convertedFields.put(field, null);
             }
         }
-        if (isMessageRelevant){
+        //if (isMessageRelevant){
             postQuery(parsedCreateQery, convertedFields);
 
-        }
-        else{
-            LOG.debug("Message skipped: " + message.getMessage().toString());
-        }
+        //}
+        //else{
+        //    LOG.debug("Message skipped: " + message.getMessage().toString());
+        //}
     }
 
 
