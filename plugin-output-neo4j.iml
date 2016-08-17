@@ -184,5 +184,6 @@
     <orderEntry type="library" name="Maven: com.floreysoft:jmte:3.2.0" level="project" />
     <orderEntry type="library" name="Maven: asm:asm:3.3.1" level="project" />
     <orderEntry type="library" name="Maven: org.apache.commons:commons-lang3:3.4" level="project" />
+    <orderEntry type="library" name="Maven: org.neo4j.driver:neo4j-java-driver:1.0.3" level="project" />
   </component>
 </module>
