@@ -54,12 +54,12 @@ public class Neo4jOutput implements MessageOutput {
         try {
             transport = Neo4jTransports.create(transportSelection, configuration);
         } catch (Exception e) {
-            final String error = "Error initializing " + Neo4JTransport.class;
+            final String error = "Error initializing " + INeo4jTransport.class;
             LOG.error(error, e);
             throw new MessageOutputConfigurationException(error);
         }
 
-
+        LOG.info("Neo4j output started!");
         isRunning.set(true);
     }
 
@@ -84,6 +84,7 @@ public class Neo4jOutput implements MessageOutput {
     @Override
     public void stop() {
         LOG.info("Stopping Neo4j output");
+        transport.stop();
         isRunning.set(false);
     }
 
@@ -114,7 +115,7 @@ public class Neo4jOutput implements MessageOutput {
 
             configurationRequest.addField(new TextField(
                             CK_NEO4J_URL, "Neo4j URL", "http://localhost:7474/db/data",
-                            "URL to Neo4j",
+                            "URL to Neo4j, default for Bolt: bolt://localhost:7687/",
                             ConfigurationField.Optional.NOT_OPTIONAL)
             );
 
@@ -128,7 +129,9 @@ public class Neo4jOutput implements MessageOutput {
                             CK_NEO4J_QUERY, "Cypher query",
                             "MERGE (source:HOST { address: '${source}' })\n" +
                                     "MERGE (user_id:USER { user_id: '${user_id}'})\nMERGE (source)-[:CONNECT]->(user_id)",
-                            "Query will be executed on every log message. Use template substitutions to access message fields: ${took_ms}",
+                            "Query will be executed on every log message.\n" +
+                                    "HTTP Mode: Use template substitutions to access message fields: ${took_ms}\n" +
+                                    "Bolt Mode: Use curly brackets only to access message fields: {took_ms}",
                             ConfigurationField.Optional.NOT_OPTIONAL, TextField.Attribute.TEXTAREA)
             );
 
@@ -153,8 +156,4 @@ public class Neo4jOutput implements MessageOutput {
             super("Neo4j Output", false, "", "An output plugin that writes log data to Neo4j");
         }
     }
-
-    public enum Neo4JTransport {
-        TCP,
-        UDP;    }
 }
