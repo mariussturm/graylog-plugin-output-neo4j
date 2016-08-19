@@ -115,7 +115,7 @@ public class Neo4jOutput implements MessageOutput {
 
             configurationRequest.addField(new TextField(
                             CK_NEO4J_URL, "Neo4j URL", "http://localhost:7474/db/data",
-                            "URL to Neo4j, default for Bolt: bolt://localhost:7687/",
+                            "default for Bolt: bolt://localhost:7687/",
                             ConfigurationField.Optional.NOT_OPTIONAL)
             );
 

@@ -95,9 +95,6 @@ public class Neo4JBoltTransport implements INeo4jTransport {
     public void send(Message message) throws InterruptedException {
 
         HashMap<String, Object> convertedFields = new HashMap<String, Object>(){};
-        //TODO: only convert field values if necessary
-        //identify relevant messages (message need at least one field of given cypher query) and convert values to string if exist
-        //Boolean isMessageRelevant = false;
 
         for (String field : fields){
             if (message.hasField(field)) {
@@ -109,13 +106,8 @@ public class Neo4JBoltTransport implements INeo4jTransport {
                 convertedFields.put(field, null);
             }
         }
-        //if (isMessageRelevant){
             postQuery(parsedCreateQery, convertedFields);
 
-        //}
-        //else{
-        //    LOG.debug("Message skipped: " + message.getMessage().toString());
-        //}
     }
 
 

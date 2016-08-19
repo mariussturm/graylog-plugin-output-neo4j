@@ -36,7 +36,7 @@ public class Neo4jOutputMetaData implements PluginMetaData {
 
     @Override
     public String getDescription() {
-        return "Output plugin that writes to Neo4j database using the Java Bolt driver";
+        return "Output plugin that writes to Neo4j database";
     }
 
     @Override
