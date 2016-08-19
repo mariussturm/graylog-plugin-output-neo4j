@@ -21,7 +21,7 @@ public class Neo4jOutputMetaData implements PluginMetaData {
 
     @Override
     public String getAuthor() {
-        return "Graylog, Inc.";
+        return "Graylog, Inc., adapted by Rainer Cording";
     }
 
     @Override
