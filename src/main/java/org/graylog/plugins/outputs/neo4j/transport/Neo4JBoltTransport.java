@@ -1,23 +1,25 @@
 package org.graylog.plugins.outputs.neo4j.transport;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import org.graylog.plugins.outputs.neo4j.Neo4jOutput;
+import org.graylog.plugins.outputs.neo4j.Neo4jStatement;
 import org.graylog2.plugin.Message;
 import org.graylog2.plugin.configuration.Configuration;
 import org.graylog2.plugin.outputs.MessageOutputConfigurationException;
-import org.neo4j.driver.v1.*;
-import org.neo4j.driver.v1.exceptions.ClientException;
+import org.neo4j.driver.AuthTokens;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.GraphDatabase;
+import org.neo4j.driver.Session;
+import org.neo4j.driver.exceptions.ClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Created by dev on 16/08/16.
  */
-public class Neo4JBoltTransport implements INeo4jTransport {
+public class Neo4JBoltTransport extends AbstractNeo4jTransport {
     private static final Logger LOG = LoggerFactory.getLogger(Neo4JBoltTransport.class);
 
     private Driver driver;
@@ -28,6 +30,7 @@ public class Neo4JBoltTransport implements INeo4jTransport {
 
     public Neo4JBoltTransport(Configuration config) throws MessageOutputConfigurationException {
 
+        super(new Neo4jStatement(config.getString(Neo4jOutput.CK_NEO4J_QUERY)));
 
         configuration = config;
         fields = new LinkedList<String>();;
@@ -42,7 +45,7 @@ public class Neo4JBoltTransport implements INeo4jTransport {
             String createQueryOnce = config.getString(Neo4jOutput.CK_NEO4J_STARTUP_QUERY);
 
             if (createQueryOnce.length() > 0)
-                session.run(createQueryOnce);
+                session.run(createQueryOnce).consume();
         }
         catch (ClientException e){
             throw new MessageOutputConfigurationException("Malformed neo4j configuration: " + e );
@@ -50,23 +53,12 @@ public class Neo4JBoltTransport implements INeo4jTransport {
         finally {
             session.close();
         }
-        //get message fields needed by cypher query
+
         String createQuery = config.getString(Neo4jOutput.CK_NEO4J_QUERY);
         LOG.debug("Bolt protocol, create query: " + createQuery);
-
-        Matcher m = Pattern.compile("\\{([^{}]*)\\}").matcher(createQuery);
-        while (m.find()) {
-            fields.add(m.group(1));
-            LOG.debug("Found field in cypher statement: " + m.group(1));
-        }
-        LOG.info("Identified " + fields.size() + " fields in graph create query.");
-
-        parsedCreateQery = parseQuery(createQuery);
-
-
     }
 
-    private void postQuery(String query, Map<String, Object> mapping) {
+     protected void postQuery(String query, Map<String, Object> mapping) {
         Session session = null;
         try {
             session = driver.session();
@@ -80,39 +72,6 @@ public class Neo4JBoltTransport implements INeo4jTransport {
                 session.close();
         }
     }
-
-    private String parseQuery(String queryString) {
-
-        queryString = queryString.replace("\n", " ");
-        queryString = queryString.replace("\t", " ");
-        queryString = queryString.replace("\r", "");
-        queryString = queryString.replace(";", "");
-
-        return queryString;
-    }
-
-    @Override
-    public void send(Message message) throws InterruptedException {
-
-        HashMap<String, Object> convertedFields = new HashMap<String, Object>(){};
-
-        for (String field : fields){
-            if (message.hasField(field)) {
-                Object valueForField = message.getField(field);
-                convertedFields.put(field, String.valueOf(valueForField));
-            }
-            else
-            {
-                convertedFields.put(field, null);
-            }
-        }
-            postQuery(parsedCreateQery, convertedFields);
-
-    }
-
-
-
-
 
     @Override
     public boolean trySend(Message message) {
