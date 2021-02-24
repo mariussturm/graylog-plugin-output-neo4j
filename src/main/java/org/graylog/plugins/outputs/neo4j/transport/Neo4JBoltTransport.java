@@ -1,8 +1,7 @@
 package org.graylog.plugins.outputs.neo4j.transport;
 
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.graylog.plugins.outputs.neo4j.Neo4jOutput;
 import org.graylog.plugins.outputs.neo4j.Neo4jStatement;
 import org.graylog2.plugin.Message;
@@ -22,36 +21,25 @@ import org.slf4j.LoggerFactory;
 public class Neo4JBoltTransport extends AbstractNeo4jTransport {
     private static final Logger LOG = LoggerFactory.getLogger(Neo4JBoltTransport.class);
 
-    private Driver driver;
-    private Configuration configuration;
-    private String parsedCreateQery = null;
-    List<String> fields;
-
+    private final Driver driver;
 
     public Neo4JBoltTransport(Configuration config) throws MessageOutputConfigurationException {
 
         super(new Neo4jStatement(config.getString(Neo4jOutput.CK_NEO4J_QUERY)));
 
-        configuration = config;
-        fields = new LinkedList<String>();;
-        Session session = null;
+        driver = GraphDatabase.driver( config.getString(Neo4jOutput.CK_NEO4J_URL),
+                AuthTokens.basic(Objects.requireNonNull(config.getString(Neo4jOutput.CK_NEO4J_USER)),
+                        Objects.requireNonNull(config.getString(Neo4jOutput.CK_NEO4J_PASSWORD))) );
 
-        try {
-            driver = GraphDatabase.driver( config.getString(Neo4jOutput.CK_NEO4J_URL),
-                    AuthTokens.basic(config.getString(Neo4jOutput.CK_NEO4J_USER), config.getString(Neo4jOutput.CK_NEO4J_PASSWORD)) );
-            session = driver.session();
+        try (Session session = driver.session()) {
 
             //run initialization query only once
             String createQueryOnce = config.getString(Neo4jOutput.CK_NEO4J_STARTUP_QUERY);
 
-            if (createQueryOnce.length() > 0)
+            if (createQueryOnce != null && createQueryOnce.length() > 0)
                 session.run(createQueryOnce).consume();
-        }
-        catch (ClientException e){
-            throw new MessageOutputConfigurationException("Malformed neo4j configuration: " + e );
-        }
-        finally {
-            session.close();
+        } catch (ClientException e) {
+            throw new MessageOutputConfigurationException("Malformed neo4j configuration: " + e);
         }
 
         String createQuery = config.getString(Neo4jOutput.CK_NEO4J_QUERY);

@@ -14,7 +14,7 @@ public interface INeo4jTransport {
      * @param message message to send to the remote host
      * @throws InterruptedException
      */
-    public void send(Message message) throws InterruptedException;
+    void send(Message message) throws InterruptedException;
 
     /**
      * Tries to send the given message to the remote host. It does <strong>not block</strong> if there is not enough
@@ -24,10 +24,10 @@ public interface INeo4jTransport {
      * @param message message to send to the remote host
      * @return true if the message could be dispatched, false otherwise
      */
-    public boolean trySend(Message message);
+    boolean trySend(Message message);
 
     /**
      * Stops the transport. Should be used to gracefully shutdown the backend.
      */
-    public void stop();
+    void stop();
 }

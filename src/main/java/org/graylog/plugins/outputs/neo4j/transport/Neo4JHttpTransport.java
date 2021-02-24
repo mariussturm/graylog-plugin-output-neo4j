@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -30,8 +31,8 @@ import org.slf4j.LoggerFactory;
 public class Neo4JHttpTransport extends AbstractNeo4jTransport implements INeo4jTransport {
     private static final Logger LOG = LoggerFactory.getLogger(Neo4JHttpTransport.class);
 
-    private WebTarget cypher;
-    private Configuration configuration;
+    private final WebTarget cypher;
+    private final Configuration configuration;
 
     public Neo4JHttpTransport(Configuration config) throws MessageOutputConfigurationException {
 
@@ -40,7 +41,7 @@ public class Neo4JHttpTransport extends AbstractNeo4jTransport implements INeo4j
         this.configuration = config;
         URI databaseUri;
         try {
-            URL baseUrl = new URL(configuration.getString(Neo4jOutput.CK_NEO4J_URL));
+            URL baseUrl = new URL(Objects.requireNonNull(configuration.getString(Neo4jOutput.CK_NEO4J_URL)));
             databaseUri = new URL(baseUrl, StringUtils.removeEnd(baseUrl.getPath(), "/") + "").toURI();
         } catch (URISyntaxException e) {
             throw new MessageOutputConfigurationException("Syntax error in neo4j URL");
@@ -54,7 +55,8 @@ public class Neo4JHttpTransport extends AbstractNeo4jTransport implements INeo4j
         Client client = ClientBuilder.newClient();
         client.register(auth);
         cypher = client.target(databaseUri);
-        if (!configuration.getString(Neo4jOutput.CK_NEO4J_STARTUP_QUERY).isEmpty()) {
+        String startupQuery = configuration.getString(Neo4jOutput.CK_NEO4J_STARTUP_QUERY);
+        if (startupQuery != null && !startupQuery.isEmpty()) {
             String queryString = new Neo4jStatement(configuration.getString(Neo4jOutput.CK_NEO4J_STARTUP_QUERY)).sanitizedQuery();
             postQuery(queryString, Collections.emptyMap());
         }

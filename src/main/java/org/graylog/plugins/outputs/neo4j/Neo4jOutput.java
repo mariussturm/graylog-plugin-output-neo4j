@@ -24,9 +24,8 @@ import org.slf4j.LoggerFactory;
 public class Neo4jOutput implements MessageOutput {
     private static final Logger LOG = LoggerFactory.getLogger(Neo4jOutput.class);
 
-    private Configuration configuration;
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
-    private INeo4jTransport transport;
+    private final INeo4jTransport transport;
 
     public static final String CK_PROTOCOL = "neo4j_protocol";
     public static final String CK_NEO4J_URL = "neo4j_url";
@@ -37,9 +36,8 @@ public class Neo4jOutput implements MessageOutput {
 
     @Inject
     public Neo4jOutput(@Assisted Stream stream, @Assisted Configuration config) throws MessageOutputConfigurationException {
-        configuration = config;
-        final Neo4jTransports transportSelection;
-        switch (configuration.getString(CK_PROTOCOL).toUpperCase(Locale.ENGLISH)) {
+        Neo4jTransports transportSelection;
+        switch (config.getString(CK_PROTOCOL).toUpperCase(Locale.ENGLISH)) {
             case "BOLT":
                 transportSelection = Neo4jTransports.BOLT;
                 break;
@@ -48,11 +46,11 @@ public class Neo4jOutput implements MessageOutput {
                 break;
 
             default:
-                throw new MessageOutputConfigurationException("Unknown protocol " + configuration.getString(CK_PROTOCOL));
+                throw new MessageOutputConfigurationException("Unknown protocol " + config.getString(CK_PROTOCOL));
         }
 
         try {
-            transport = Neo4jTransports.create(transportSelection, configuration);
+            transport = Neo4jTransports.create(transportSelection, config);
         } catch (Exception e) {
             final String error = "Error initializing " + INeo4jTransport.class;
             LOG.error(error, e);
