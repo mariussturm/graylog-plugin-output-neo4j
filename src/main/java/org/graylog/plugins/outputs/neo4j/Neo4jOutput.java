@@ -3,6 +3,10 @@ package org.graylog.plugins.outputs.neo4j;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.graylog.plugins.outputs.neo4j.transport.INeo4jTransport;
 import org.graylog.plugins.outputs.neo4j.transport.Neo4jTransports;
 import org.graylog2.plugin.Message;
@@ -17,16 +21,11 @@ import org.graylog2.plugin.streams.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 public class Neo4jOutput implements MessageOutput {
     private static final Logger LOG = LoggerFactory.getLogger(Neo4jOutput.class);
 
-    private Configuration configuration;
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
-    private INeo4jTransport transport;
+    private final INeo4jTransport transport;
 
     public static final String CK_PROTOCOL = "neo4j_protocol";
     public static final String CK_NEO4J_URL = "neo4j_url";
@@ -37,9 +36,8 @@ public class Neo4jOutput implements MessageOutput {
 
     @Inject
     public Neo4jOutput(@Assisted Stream stream, @Assisted Configuration config) throws MessageOutputConfigurationException {
-        configuration = config;
-        final Neo4jTransports transportSelection;
-        switch (configuration.getString(CK_PROTOCOL).toUpperCase(Locale.ENGLISH)) {
+        Neo4jTransports transportSelection;
+        switch (config.getString(CK_PROTOCOL).toUpperCase(Locale.ENGLISH)) {
             case "BOLT":
                 transportSelection = Neo4jTransports.BOLT;
                 break;
@@ -48,11 +46,11 @@ public class Neo4jOutput implements MessageOutput {
                 break;
 
             default:
-                throw new MessageOutputConfigurationException("Unknown protocol " + configuration.getString(CK_PROTOCOL));
+                throw new MessageOutputConfigurationException("Unknown protocol " + config.getString(CK_PROTOCOL));
         }
 
         try {
-            transport = Neo4jTransports.create(transportSelection, configuration);
+            transport = Neo4jTransports.create(transportSelection, config);
         } catch (Exception e) {
             final String error = "Error initializing " + INeo4jTransport.class;
             LOG.error(error, e);
@@ -114,8 +112,10 @@ public class Neo4jOutput implements MessageOutput {
                             ConfigurationField.Optional.NOT_OPTIONAL));
 
             configurationRequest.addField(new TextField(
-                            CK_NEO4J_URL, "Neo4j URL", "http://localhost:7474/db/data",
-                            "default for Bolt: bolt://localhost:7687/",
+                            CK_NEO4J_URL, "Neo4j URL", "http://localhost:7474/db/neo4j/tx/commit",
+                            "HTTP URL format for Neo4j 3.5.x: http://localhost:7474/db/data/transaction/commit\n"
+                                    + "HTTP URL format for Neo4j 4.x: http://localhost:7474/db/<dbName>/tx/commit\n"
+                                    + "Bolt URL format: bolt://localhost:7687/",
                             ConfigurationField.Optional.NOT_OPTIONAL)
             );
 
@@ -127,11 +127,11 @@ public class Neo4jOutput implements MessageOutput {
 
             configurationRequest.addField(new TextField(
                             CK_NEO4J_QUERY, "Cypher query",
-                            "MERGE (source:HOST { address: '${source}' })\n" +
-                                    "MERGE (user_id:USER { user_id: '${user_id}'})\nMERGE (source)-[:CONNECT]->(user_id)",
+                            "MERGE (source:HOST { address: $source })\n" +
+                                    "MERGE (user_id:USER { user_id: $user_id})\nMERGE (source)-[:CONNECT]->(user_id)",
                             "Query will be executed on every log message.\n" +
-                                    "HTTP Mode: Use template substitutions to access message fields: ${took_ms}\n" +
-                                    "Bolt Mode: Use curly brackets only to access message fields: {took_ms}",
+                                    "Queries use template substitutions to access message fields using default neo4j parameter syntax: $parameterName.\n" +
+                                    "All parameters are sent to the database as strings.",
                             ConfigurationField.Optional.NOT_OPTIONAL, TextField.Attribute.TEXTAREA)
             );
 

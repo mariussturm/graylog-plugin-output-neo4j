@@ -1,0 +1,85 @@
+
+### Create a Neo4j bolt output
+# curl 'http://127.0.0.1:9000/api/system/outputs' -H 'Accept: application/json' -H 'X-Requested-By: XMLHttpRequest' -H 'Authorization: Basic ZmJkMDM5NzAtZGQxMS00YzA0LThjYTUtOTY1NjhhYzIzNTNjOnNlc3Npb24=' -H 'Content-Type: application/json' --data-raw '{"title":"neo4j","type":"org.graylog.plugins.outputs.neo4j.Neo4jOutput","configuration":{"neo4j_protocol":"HTTP","neo4j_url":"http://localhost:7474/db/neo4j/tx/commit","neo4j_startup_query":"CREATE INDEX ON :HOST(address)","neo4j_query":"MERGE (source:HOST { address: $source })\nMERGE (user_id:USER { user_id: $user_id})\nMERGE (source)-[:CONNECT]->(user_id)","neo4j_user":"neo4j","neo4j_password":"qqq"}}'
+POST http://127.0.0.1:9000/api/system/outputs
+Accept: application/json
+Authorization: Basic admin admin
+Content-Type: application/json
+X-Requested-By: XMLHttpRequest
+
+{
+  "title": "neo4j",
+  "type": "org.graylog.plugins.outputs.neo4j.Neo4jOutput",
+  "configuration": {
+    "neo4j_protocol": "BOLT",
+    "neo4j_url": "bolt://neo4j:7687",
+    "neo4j_startup_query": "CREATE INDEX ON :HOST(address)",
+    "neo4j_query": "MERGE (source:HOST { address: $source }) MERGE (user_id:USER { user_id: $user_id}) MERGE (source)-[:CONNECT]->(user_id)",
+    "neo4j_user": "neo4j",
+    "neo4j_password": "password"
+  }
+}
+
+> {% client.global.set("output_id", response.body.id); %}
+
+### Add the ouput to the all messages stream
+# curl 'http://127.0.0.1:9000/api/streams/000000000000000000000001/outputs' -H 'X-Requested-By: XMLHttpRequest' -H 'Accept: application/json' -H 'Authorization: Basic ZmJkMDM5NzAtZGQxMS00YzA0LThjYTUtOTY1NjhhYzIzNTNjOnNlc3Npb24=' -H 'Content-Type: application/json' --data-raw '{"outputs":["60352c5b471afa000c0f4d15"]}'
+POST http://127.0.0.1:9000/api/streams/000000000000000000000001/outputs
+Accept: application/json
+Authorization: Basic admin admin
+Content-Type: application/json
+X-Requested-By: XMLHttpRequest
+
+{"outputs":["{{output_id}}"]}
+
+### Create a GELF HTTP input
+# curl 'http://127.0.0.1:9000/api/system/inputs' -H 'Accept: application/json' -H 'X-Requested-By: XMLHttpRequest' -H 'Authorization: Basic ZmJkMDM5NzAtZGQxMS00YzA0LThjYTUtOTY1NjhhYzIzNTNjOnNlc3Npb24=' -H 'Content-Type: application/json' --data-raw '{"title":"http input","type":"org.graylog2.inputs.gelf.http.GELFHttpInput","configuration":{"bind_address":"0.0.0.0","port":12201,"recv_buffer_size":1048576,"tls_cert_file":"","tls_key_file":"","tls_enable":false,"tls_key_password":"","tls_client_auth":"disabled","tls_client_auth_cert_file":"","tcp_keepalive":false,"enable_cors":true,"max_chunk_size":65536,"idle_writer_timeout":60,"override_source":null,"decompress_size_limit":8388608},"global":true}'
+POST http://127.0.0.1:9000/api/system/inputs
+Accept: application/json
+Accept-Language: en-US,en;q=0.5
+X-Requested-By: XMLHttpRequest
+Authorization: Basic admin admin
+Content-Type: application/json
+
+{
+  "title": "http input",
+  "type": "org.graylog2.inputs.gelf.http.GELFHttpInput",
+  "configuration": {
+    "bind_address": "0.0.0.0",
+    "port": 12201,
+    "recv_buffer_size": 1048576,
+    "tls_cert_file": "",
+    "tls_key_file": "",
+    "tls_enable": false,
+    "tls_key_password": "",
+    "tls_client_auth": "disabled",
+    "tls_client_auth_cert_file": "",
+    "tcp_keepalive": false,
+    "enable_cors": true,
+    "max_chunk_size": 65536,
+    "idle_writer_timeout": 60,
+    "override_source": null,
+    "decompress_size_limit": 8388608
+  },
+  "global": true
+}
+
+### Send some sample data
+# curl -XPOST http://localhost:12201/gelf  -d '{"short_message":"Hello there", "host":"example.org", "facility":"test", "source":"1.2.3.4", "user_id":"foo"}'
+POST http://localhost:12201/gelf
+Content-Type: application/x-www-form-urlencoded
+
+{"short_message":"Hello there", "host":"example.org", "facility":"test", "source":"1.2.3.4", "user_id":"foo"}
+
+### Check the data has been created into Neo4j (or just use the neo4j browser on http://localhost:7474
+
+POST http://localhost:7474/db/neo4j/tx/commit
+Content-Type: application/json
+Authorization: basic neo4j password
+
+{
+  "statements" : [ {
+    "statement" : "MATCH (n:USER) RETURN n"
+  } ]
+}
+
